@@ -1,26 +1,9 @@
 import socket
 import struct
 import select
-import time
-server_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-address = ('localhost', 1082)
-server_socket.bind(address)
-server_socket.listen(5)
-while True:
-    (conn, client_addr_port) = server_socket.accept()
-    print 'socket accept'
-
-    # method negotiate period
-    data = conn.recv(4096)
-    # X'00' NO AUTHENTICATION REQUIRED
-    conn.send(b'\x05\x00')
-
-    # method dependent subnegotiate period
-    data = conn.recv(4096)
-
+def request_form_filler(data):
     form_pointer = 0
     socks_request = {}
-
     socks_request['VER'] = data[form_pointer]
     form_pointer += 1
     socks_request['CMD'] = data[form_pointer]
@@ -43,10 +26,31 @@ while True:
         form_pointer += 16
     else:
         print 'error'
-
     socks_request['DST.PORT'] = data[form_pointer:form_pointer+2]
     form_pointer += 2 
+    request_form = socks_request
+    return request_form
 
+server_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+server_bind_address = ('localhost', 1082)
+server_socket.bind(server_bind_address)
+server_socket.listen(5)
+while True:
+    (client_server_socket, client_addr_port) = server_socket.accept()
+    print 'socket accept'
+
+    # method negotiate period
+    data = client_server_socket.recv(4096)
+    print data.encode('hex')
+    # X'00' NO AUTHENTICATION REQUIRED
+    client_server_socket.send(b'\x05\x00')
+
+    # method dependent subnegotiate period
+    data = client_server_socket.recv(4096)
+    socks_request = request_form_filler(data)
+
+
+    # Analyze the ip_addr and port
     if socks_request['ATYP'] == b'\x01':
         remote_addr = socket.inet_ntoa(socks_request['DST.ADDR'])
     elif socks_request['ATYP'] == b'\x03':
@@ -57,27 +61,27 @@ while True:
         print 'error'
     remote_port = int(struct.unpack('>H',(socks_request['DST.PORT']))[0])
 
+
     if socks_request['CMD'] == '\x01':
-        remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         print remote_addr, remote_port
-        remote_socket.connect((remote_addr,remote_port))
+        server_remote_socket.connect((remote_addr,remote_port))
 
     # VER | REP |  RSV  | ATYP | BND.ADDR | BND.PORT
     reply = b'\x05\x00\x00\x01'
+    print server_remote_socket.getsockname()[0], server_remote_socket.getsockname()[1]
+    reply += socket.inet_aton(server_remote_socket.getsockname()[0])
+    reply += struct.pack('>H',server_remote_socket.getsockname()[1])
 
-    print remote_socket.getsockname()[0], remote_socket.getsockname()[1]
-
-    reply += socket.inet_aton(remote_socket.getsockname()[0])
-    reply += struct.pack('>H',remote_socket.getsockname()[1])
-    conn.send(reply)
+    client_server_socket.send(reply)
 
     while True:
-        r, w, e = select.select([remote_socket,conn],[],[])
-        if remote_socket in r:
-            if conn.send(remote_socket.recv(4096)) <= 0:break
-        if conn in r:
-            if remote_socket.send(conn.recv(4096)) <= 0:break
-    print 'connection closed'
+        r, w, e = select.select([server_remote_socket,client_server_socket],[],[])
+        if server_remote_socket in r:
+            if client_server_socket.send(server_remote_socket.recv(4096)) <= 0:break
+        if client_server_socket in r:
+            if server_remote_socket.send(client_server_socket.recv(4096)) <= 0:break
+    print 'client_server_socketection closed'
 #server_socket.close()
 
 
