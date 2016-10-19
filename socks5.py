@@ -66,27 +66,37 @@ while True:
     #     remote_addr = socket.inet_ntoa(socks_request['DST.ADDR'])
     else:
         print 'error'
+    # remote_addr = hosts_dict[remote_addr]
     remote_port = int(struct.unpack('>H',(socks_request['DST.PORT']))[0])
 
 
+    # VER | REP |  RSV  | ATYP | BND.ADDR | BND.PORT
+    # CONNECT X'01'
     if socks_request['CMD'] == '\x01':
         server_remote_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         print remote_addr, remote_port
-        server_remote_socket.connect((remote_addr,remote_port))
-    elif socks_request['CMD'] == '\x02':
-    elif socks_request['CMD'] == '\x03':
+        try:
+            server_remote_socket.connect((remote_addr,remote_port))
+        except:
+            print
+
+        reply = b'\x05\x00\x00\x01'
+        print server_remote_socket.getsockname()[0], server_remote_socket.getsockname()[1]
+        reply += socket.inet_aton(server_remote_socket.getsockname()[0])
+        reply += struct.pack('>H',server_remote_socket.getsockname()[1])
+        
+        client_server_socket.send(reply)
+        send_tcp_to_each_other(client_server_socket, server_remote_socket)
+        print 'client_server_socket closed'
+        client_server_socket.close()
+    # BIND X'02'
+    # elif socks_request['CMD'] == '\x02':
+    # TODO to be implemented
+    # UDP ASSOCIATE X'03'
+    # elif socks_request['CMD'] == '\x03':
+    # TODO to be implemented
     else:
-
-    # VER | REP |  RSV  | ATYP | BND.ADDR | BND.PORT
-    reply = b'\x05\x00\x00\x01'
-    print server_remote_socket.getsockname()[0], server_remote_socket.getsockname()[1]
-    reply += socket.inet_aton(server_remote_socket.getsockname()[0])
-    reply += struct.pack('>H',server_remote_socket.getsockname()[1])
-
-    client_server_socket.send(reply)
-    send_tcp_to_each_other(client_server_socketection, server_remote_socket)
-
-    print 'client_server_socketection closed'
-#server_socket.close()
-
+        reply = b'\x05\x07\x00\x01' + '\x00\x00\x00\x00' + '\x00\x00'
+        client_server_socket.send(reply)
+        client_server_socket.close()
 
