@@ -1,5 +1,6 @@
 # socks5_server.py
 A socks5 server imepletation
+## This is a simplified version of socks5. 
 ## Work in most cases
 This program covers most of the specs in 
 [RFC 1928 SOCKS Protocol Version 5 - IETF](https://www.ietf.org/rfc/rfc1928.txt). 
